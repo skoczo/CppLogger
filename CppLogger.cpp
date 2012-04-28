@@ -37,6 +37,8 @@ CppLogger::CppLogger()
 	debugFileSizeMB = 10;
 	errorFileSizeMB = 10;
 	directory = "logs";
+	filename = "log";
+	filesNum = 2;
 	//end set default values
 
 	//try to get settings from file
@@ -56,9 +58,9 @@ CppLogger::CppLogger()
 #endif
 	}
 
-	fileDebug.open((directory + "/log_debug.txt").c_str(),
+	fileDebug.open((directory + '/' + filename + "_debug.txt").c_str(),
 			std::ios::out | std::ios::in | std::ios::app);
-	fileError.open((directory + "/log_error.txt").c_str(),
+	fileError.open((directory + '/' + filename + "_error.txt").c_str(),
 			std::ios::out | std::ios::in | std::ios::app);
 }
 
@@ -87,22 +89,44 @@ void CppLogger::debug(const char* c, bool isError)
 	if (size > debugFileSizeMB * 1024 * 1024)
 	{
 		fileDebug.close();
-		std::ifstream file1;
-		file1.open("logs/log_debug1.txt");
-		if (file1.is_open())
-		{
-			file1.close();
-			remove("logs/log_debug1.txt");
-		}
 
-		rename("logs/log_debug.txt", "logs/log_debug1.txt");
-		fileDebug.open("logs/log_debug.txt",
+		for (int i = filesNum - 1; i >= 0; i--)
+		{
+			std::stringstream ss;
+			if (i - 1 > 0)
+				ss << i;
+
+			std::string file1 = directory + '/' + filename + "_debug.txt"
+					+ ss.str();
+
+			ss.str("");
+			if (i - 1 > 0)
+				ss << i - 1;
+
+			std::string file2 = directory + '/' + filename + "_debug.txt"
+					+ ss.str();
+
+			if (i == filesNum - 1)
+			{
+				std::ifstream f;
+				f.open((file1).c_str());
+				if (f.is_open())
+				{
+					f.close();
+					remove((file1).c_str());
+				}
+			}
+			if (filesNum != 1)
+				rename(file2.c_str(), file1.c_str());
+		}
+		fileDebug.open((directory + '/' + filename + "_debug.txt").c_str(),
 				std::ios::out | std::ios::in | std::ios::app);
 	}
 
 	if (!fileDebug.is_open())
 	{
 		std::cout << "debug file is not open" << std::endl;
+		return;
 	}
 
 	time_t rawtime;
@@ -141,22 +165,44 @@ void CppLogger::error(const char *c)
 	if (size > errorFileSizeMB * 1024 * 1024)
 	{
 		fileError.close();
-		std::ifstream file1;
-		file1.open("logs/log_error1.txt");
-		if (file1.is_open())
-		{
-			file1.close();
-			remove("logs/log_error1.txt");
-		}
 
-		rename("logs/log_error.txt", "logs/log_error1.txt");
-		fileError.open("logs/log_error.txt",
+		for (int i = filesNum - 1; i >= 0; i--)
+		{
+			std::stringstream ss;
+			if (i - 1 > 0)
+				ss << i;
+
+			std::string file1 = directory + '/' + filename + "_error.txt"
+					+ ss.str();
+
+			ss.str("");
+			if (i - 1 > 0)
+				ss << i - 1;
+
+			std::string file2 = directory + '/' + filename + "_error.txt"
+					+ ss.str();
+
+			if (i == filesNum - 1)
+			{
+				std::ifstream f;
+				f.open((file1).c_str());
+				if (f.is_open())
+				{
+					f.close();
+					remove((file1).c_str());
+				}
+			}
+			if (filesNum != 1)
+				rename(file2.c_str(), file1.c_str());
+		}
+		fileError.open((directory + '/' + filename + "_error.txt").c_str(),
 				std::ios::out | std::ios::in | std::ios::app);
 	}
 
 	if (!fileError.is_open())
 	{
 		std::cout << "error file is not open" << std::endl;
+		return;
 	}
 
 	time_t rawtime;
@@ -189,7 +235,9 @@ void CppLogger::logError(const char* c)
 	if (getInstance()->isErrorLog)
 	{
 		CppLogger::getInstance()->error(c);
-		CppLogger::getInstance()->debug(c, true);
+
+		if (getInstance()->isDebugLog)
+			CppLogger::getInstance()->debug(c, true);
 	}
 }
 
@@ -221,6 +269,31 @@ void CppLogger::parseConfFile()
 					isErrorLog = true;
 				}
 			}
+			else if (type == "filesNum")
+			{
+				std::string var = getVar(file);
+				int number = atoi(var.c_str());
+				if (number > 0)
+				{
+					filesNum = number;
+				}
+			}
+			else if (type == "filename")
+			{
+				std::string var = getVar(file);
+				if (var.size() > 0)
+				{
+					filename = var;
+				}
+			}
+			else if (type == "directory")
+			{
+				std::string var = getVar(file);
+				if (var.size() > 0)
+				{
+					directory = var;
+				}
+			}
 		}
 	}
 }
@@ -232,8 +305,15 @@ std::string CppLogger::getVar(std::ifstream& file)
 	while (file.good())
 	{
 		char c = file.get();
-		if (c == '=' || c == '#' || c == '\n')
+		if (c == '=' || c == '\n')
 		{
+			break;
+		}
+		else if (c == '#')
+		{
+			while (file.good() && file.get() != '\n')
+			{
+			}
 			break;
 		}
 		else if (c == ' ')

@@ -18,6 +18,7 @@
 #include <pthread.h>
 #include <cstring>
 #include <algorithm>
+#include <sstream>
 
 class MutexObject;
 
@@ -33,7 +34,8 @@ private:
 	std::fstream fileDebug, fileError;
 	int debugFileSizeMB, errorFileSizeMB;
 	bool isDebugLog, isErrorLog;
-	std::string directory;
+	std::string directory, filename;
+	int filesNum;
 
 public:
 	/**
